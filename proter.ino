@@ -1,55 +1,113 @@
+unsigned long currentMillis;
+
 // Deklarasi GPS ------------------------------------------------------------------------------------------------------------------------------------
 #include <TinyGPSPlus.h>
-#include <SoftwareSerial.h>
+/*
+   This sample sketch demonstrates the normal use of a TinyGPSPlus (TinyGPSPlus) object.
+   It requires the use of SoftwareSerial, and assumes that you have a
+   4800-baud serial GPS device hooked up on pins 4(rx) and 3(tx).
+*/
 
-static const int RXPin = 16, TXPin = 17;
-static const uint32_t GPSBaud = 9600;
+#define RXD2 16
+#define TXD2 17
+#define GPS_BAUD 9600
 
-String lokasi;
+unsigned long previousMillisGps = 0; // waktu terakhir sensor dibaca
+const long intervalGps = 10000;       // jeda waktu (10 detik = 10000 ms)
+
 double latitude, longitude;
-int statusL = 0, statusB = 0;
 
+// The TinyGPS++ object
 TinyGPSPlus gps;
 
-SoftwareSerial ss(RXPin, TXPin);
+// Create an instance of the HardwareSerial class for Serial 2
+HardwareSerial gpsSerial(2);
 
 // GPS Loop ------------------------------------------------------------------------------------------------------------------------------------
 void gpsLoop()
 {
   // This sketch displays information every time a new sentence is correctly encoded.
-  while (ss.available() > 0)
-  {
-    if (gps.encode(ss.read()))
-    {
-      // Cek apakah lokasi valid
-      // jika ya
-      if (gps.location.isValid())
-      {
-        statusB = 1;
-        if (statusB != statusL)
-        {
-          Serial.println("\nLokasi tersedia");
-          statusL = statusB;
-        }
-      }
-      // jika tidak
-      else
-      {
-        statusB = 0;
-        if (statusB != statusL)
-        {
-          Serial.println("Lokasi tidak tersedia");
-          statusL = statusB;
-        }
+  while (gpsSerial.available() > 0)
+    if (gps.encode(gpsSerial.read())) {
+
+      // Cek apakah waktu jeda sudah tercapai
+      if (currentMillis - previousMillisGps >= intervalGps) {
+        previousMillisGps = currentMillis;
+
+        // Baca sensor
+        displayInfo();
       }
     }
-  }
 
   if (millis() > 5000 && gps.charsProcessed() < 10)
   {
     Serial.println(F("No GPS detected: check wiring."));
     while(true);
   }
+}
+
+void displayInfo()
+{
+  Serial.print("Sensor GPS :\n");
+  Serial.print(F("Location: ")); 
+  if (gps.location.isValid())
+  {
+    Serial.print(gps.location.lat(), 6);
+    Serial.print(F(","));
+    Serial.print(gps.location.lng(), 6);
+  }
+  else
+  {
+    Serial.print(F("INVALID"));
+  }
+
+  Serial.print(F("  |  Date/Time: "));
+  if (gps.date.isValid())
+  {
+    Serial.print(gps.date.month());
+    Serial.print(F("/"));
+    Serial.print(gps.date.day());
+    Serial.print(F("/"));
+    Serial.print(gps.date.year());
+  }
+  else
+  {
+    Serial.print(F("INVALID"));
+  }
+
+  Serial.print(F(" "));
+  if (gps.time.isValid())
+  {
+    int hour = gps.time.hour() + 7;
+    if (hour < 10) Serial.print(F("0"));
+    Serial.print(hour);
+    Serial.print(F(":"));
+    if (gps.time.minute() < 10) Serial.print(F("0"));
+    Serial.print(gps.time.minute());
+    Serial.print(F(":"));
+    if (gps.time.second() < 10) Serial.print(F("0"));
+    Serial.print(gps.time.second());
+    Serial.print(F("."));
+    if (gps.time.centisecond() < 10) Serial.print(F("0"));
+    Serial.print(gps.time.centisecond());
+  }
+  else
+  {
+    Serial.print(F("INVALID"));
+  }
+
+  Serial.print(F("  |  Satellites: ")); 
+  if (gps.satellites.isValid())
+  {
+    Serial.print(gps.satellites.value());
+  }
+  else
+  {
+    Serial.print(F("INVALID"));
+  }
+
+  Serial.println();
+  Serial.println();
 }
 
 // Deklarasi Telegram ------------------------------------------------------------------------------------------------------------------------------------
@@ -59,8 +117,8 @@ void gpsLoop()
 #include <ArduinoJson.h>
 #include <UniversalTelegramBot.h>
 
-#define ssid "Fakultas Teknik"
-#define password "T3knikupnvj"
+#define ssid "XxX"
+#define password "12345678"
 
 #define token "7188460217:AAFE5WGB32C7tT-7bzPpY662kfyC6psOocY"
 #define CHAT_ID "6383860034"
@@ -169,6 +227,9 @@ void telegramSetup()
 
 Adafruit_MPU6050 mpu;
 
+unsigned long previousMillisMpu = 0; // waktu terakhir sensor dibaca
+const long intervalMpu = 10000;       // jeda waktu (10 detik = 10000 ms)
+
 float ax, ay, az;
 
 // Setup MPU6050 ------------------------------------------------------------------------------------------------------------------------
@@ -262,7 +323,14 @@ void mpuLoop()
   ay = a.acceleration.y;
   az = a.acceleration.z;
 
-  Serial.print(String(ax) + "  " + String(ay) + "  " + String(az) + "\n");
+  if (currentMillis - previousMillisMpu >= intervalMpu) {
+    previousMillisMpu = currentMillis;
+
+    // Print nilai sensor
+    Serial.print("Sensor MPU6050 :\n");
+    Serial.print("ax = " + String(ax) + "  |  ay = " + String(ay) + "  |  az = " + String(az) + "\n");
+    Serial.println();
+  }
 }
 
 // Deklarasi SW420 ------------------------------------------------------------------------------------------------------------------------
@@ -280,7 +348,9 @@ void swSetup()
 void swLoop()
 {
   getar = digitalRead(swPin);
-  Serial.print("Nilai sensor Sw-420 : " + String(getar) + "\n");
+  if (getar == 1) {
+    Serial.print("Nilai sensor Sw-420 : " + String(getar) + "\n");
+  }
 }
 
 // Deteksi jatuh ------------------------------------------------------------------------------------------------------------------------
@@ -328,6 +398,7 @@ void cekJatuh()
     Serial.println("Mengirim pesan : \n" + String(pesan1));
 
     Serial.println("🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi");
+    Serial.println();
     // Tambahkan aksi di sini: notifikasi, buzzer, dll
     fallStartTime = millis();
     fallDetected = false;
@@ -369,7 +440,7 @@ void cekJatuh()
 void setup()
 {
   Serial.begin(115200);
-  ss.begin(GPSBaud);
+  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
   telegramSetup();
   mpuSetup();
   swSetup();
@@ -379,11 +450,11 @@ void setup()
 
 void loop()
 {
+  currentMillis = millis();
   gpsLoop();
   // cek_pesan();
   mpuLoop();
   swLoop();
   cekJatuh();
-  Serial.println();
   delay(100);
 }
