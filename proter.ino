@@ -1,3 +1,4 @@
+#include <Arduino.h>
 unsigned long currentMillis;
 
 // Deklarasi GPS ------------------------------------------------------------------------------------------------------------------------------------
@@ -13,7 +14,7 @@ unsigned long currentMillis;
 #define GPS_BAUD 9600
 
 unsigned long previousMillisGps = 0; // waktu terakhir sensor dibaca
-const long intervalGps = 10000;       // jeda waktu (10 detik = 10000 ms)
+const long intervalGps = 5000;       // jeda waktu (10 detik = 10000 ms)
 
 double latitude, longitude;
 
@@ -24,28 +25,6 @@ TinyGPSPlus gps;
 HardwareSerial gpsSerial(2);
 
 // GPS Loop ------------------------------------------------------------------------------------------------------------------------------------
-void gpsLoop()
-{
-  // This sketch displays information every time a new sentence is correctly encoded.
-  while (gpsSerial.available() > 0)
-    if (gps.encode(gpsSerial.read())) {
-
-      // Cek apakah waktu jeda sudah tercapai
-      if (currentMillis - previousMillisGps >= intervalGps) {
-        previousMillisGps = currentMillis;
-
-        // Baca sensor
-        displayInfo();
-      }
-    }
-
-  if (millis() > 5000 && gps.charsProcessed() < 10)
-  {
-    Serial.println(F("No GPS detected: check wiring."));
-    while(true);
-  }
-}
-
 void displayInfo()
 {
   Serial.print("Sensor GPS :\n");
@@ -79,6 +58,9 @@ void displayInfo()
   if (gps.time.isValid())
   {
     int hour = gps.time.hour() + 7;
+    if (hour > 24) {
+      hour = hour - 24;
+    }
     if (hour < 10) Serial.print(F("0"));
     Serial.print(hour);
     Serial.print(F(":"));
@@ -108,6 +90,28 @@ void displayInfo()
 
   Serial.println();
   Serial.println();
+}
+
+void gpsLoop()
+{
+  // This sketch displays information every time a new sentence is correctly encoded.
+  while (gpsSerial.available() > 0)
+    if (gps.encode(gpsSerial.read())) {
+
+      // Cek apakah waktu jeda sudah tercapai
+      if (currentMillis - previousMillisGps >= intervalGps) {
+        previousMillisGps = currentMillis;
+
+        // Baca sensor
+        displayInfo();
+      }
+    }
+
+  if (millis() > 5000 && gps.charsProcessed() < 10)
+  {
+    Serial.println(F("No GPS detected: check wiring."));
+    while(true);
+  }
 }
 
 // Deklarasi Telegram ------------------------------------------------------------------------------------------------------------------------------------
@@ -228,7 +232,7 @@ void telegramSetup()
 Adafruit_MPU6050 mpu;
 
 unsigned long previousMillisMpu = 0; // waktu terakhir sensor dibaca
-const long intervalMpu = 10000;       // jeda waktu (10 detik = 10000 ms)
+const long intervalMpu = 5000;       // jeda waktu (10 detik = 10000 ms)
 
 float ax, ay, az;
 
@@ -435,6 +439,111 @@ void cekJatuh()
   else {}
 }
 
+// Deklarasi MQTT -------------------------------------------------------------------------------------
+#include <PubSubClient.h>
+
+const char* mqtt_server = "broker.hivemq.com";
+int intervalMqtt = 1000;
+
+WiFiClient espClient;
+PubSubClient mqttclient(espClient);
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE  (50)
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!mqttclient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP8266Client-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (mqttclient.connect(clientId.c_str())) {
+      Serial.println("Connected");
+      // Once connected, publish an announcement...
+      mqttclient.publish("musfa/mqtt", "musfa");
+      // ... and resubscribe
+      mqttclient.subscribe("musfa/mqtt");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttclient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+// MQTT Setup ------------------------------------------------------------------------------------------
+void mqttSetup() {
+  mqttclient.setServer(mqtt_server, 1883);
+}
+
+// MQTT Loop -------------------------------------------------------------------------------------------
+void mqttLoop() {
+  if (!mqttclient.connected()) {
+    reconnect();
+  }
+  mqttclient.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg > intervalMqtt) {
+    lastMsg = now;
+    
+    // Buat String nilai
+    
+    String nilaiJam, nilaiMenit, nilaiDetik;
+    int nilaiJam1 = gps.time.hour() + 7;
+    if (nilaiJam1 > 24) {
+      nilaiJam1 = nilaiJam1 - 24;
+    }
+    if (nilaiJam1 < 10) {
+      nilaiJam = "0" + String(nilaiJam1);
+    }
+    else {
+      nilaiJam = String(nilaiJam1);
+    }
+    // ---
+    int nilaiMenit1 = gps.time.minute();
+    if (nilaiMenit1 < 10) {
+      nilaiMenit = "0" + String(nilaiMenit1);
+    }
+    else {
+      nilaiMenit = String(nilaiMenit1);
+    }
+    // ---
+    int nilaiDetik1 = gps.time.second();
+    if (nilaiDetik1 < 10) {
+      nilaiDetik = "0" + String(nilaiDetik1);
+    }
+    else {
+      nilaiDetik = String(nilaiDetik1);
+    }
+
+    // Buat JSON string
+    String payload = "{";
+    payload += "\"ax\":\"" + String(ax) + "\",";
+    payload += "\"ay\":\"" + String(ay) + "\",";
+    payload += "\"az\":\"" + String(az) + "\",";
+    payload += "\"satelit\":\"" + String(gps.satellites.value()) + "\",";
+    payload += "\"latitude\":\"" + String(gps.location.lat(), 6) + "\",";
+    payload += "\"longitude\":\"" + String(gps.location.lng(), 6) + "\",";
+    payload += "\"tanggal\":\"" + String(gps.date.day()) + "\",";
+    payload += "\"bulan\":\"" + String(gps.date.month()) + "\",";
+    payload += "\"tahun\":\"" + String(gps.date.year()) + "\",";
+    payload += "\"jam\":\"" + nilaiJam + "\",";
+    payload += "\"menit\":\"" + nilaiMenit + "\",";
+    payload += "\"detik\":\"" + nilaiDetik + "\"";
+    payload += "}";
+
+    Serial.println(payload);
+
+    mqttclient.publish("musfa/proter", payload.c_str());
+
+    Serial.println();
+  }
+}
+
 // --------------------------------------------
 
 void setup()
@@ -444,6 +553,7 @@ void setup()
   telegramSetup();
   mpuSetup();
   swSetup();
+  mqttSetup();
 }
 
 // --------------------------------------------
@@ -456,5 +566,6 @@ void loop()
   mpuLoop();
   swLoop();
   cekJatuh();
-  delay(100);
+  mqttLoop();
+  delay(50);
 }
