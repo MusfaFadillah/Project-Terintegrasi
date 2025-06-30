@@ -357,88 +357,6 @@ void swLoop()
   }
 }
 
-// Deteksi jatuh ------------------------------------------------------------------------------------------------------------------------
-unsigned long fallStartTime = 0;
-const unsigned long fallThresholdTime = 60000; // 60 detik
-bool fallDetected = false;
-
-void cekJatuh()
-{
-  // Cek kondisi helm miring selama lebih dari 1 menit
-  bool isFallen =
-    // (abs(ax) > 8.5 && abs(ay) < 3 && abs(az) < 3) ||
-    // (abs(ay) > 8.5 && abs(ax) < 3 && abs(az) < 3) ||
-    // (abs(ay) > 5 && abs(ax) < 3 && abs(az) > 5) ||
-    // (abs(ax) > 5 && abs(ay) < 3 && abs(az) > 5)
-    az < 5;
-
-  // Jatuh 1 jika helm pengguna terus menerus miring selama 1 menit
-  if (isFallen && getar == 1) 
-  {
-    fallDetected = true;
-    latitude = gps.location.lat();
-    longitude = gps.location.lng();
-    if ((latitude == 0) || (longitude == 0))
-    {
-      latitude = -6.354758804041;
-      longitude = 106.775315014374;
-    }
-    String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
-    pesan1 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
-    // bot.sendMessage(CHAT_ID, pesan1);
-
-    bool response = bot.sendMessage(CHAT_ID, pesan1);
-
-    // Cek apakah respons dari server Telegram valid
-    if (response == true) {
-      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
-    } else {
-      Serial.println("❌ Gagal mengirim pesan.");
-      Serial.println("Respons Telegram:");
-      Serial.println(response);
-    }
-
-    Serial.println("Mengirim pesan : \n" + String(pesan1));
-
-    Serial.println("🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi");
-    Serial.println();
-    // Tambahkan aksi di sini: notifikasi, buzzer, dll
-    fallStartTime = millis();
-    fallDetected = false;
-  } 
-  else 
-  {
-    fallStartTime = 0; // reset waktu jika orientasi kembali normal
-    fallDetected = false;
-  }
-
-  // Jatuh 2 jika pengguna mengalami benturan dari sisi sampinng kanan kiri atau depan belakang, serta mengalami percepatan mendadak
-  if 
-  (/*abs(az) > 8.5 && (abs(ax) > 9.0 || abs(ay) > 9.0)*/ 
-    (abs(ax) > 10 && abs(ay) > 10) || (abs(ax) > 10 && abs(az) > 10) || (abs(az) > 10 && abs(ay) > 10) ||
-    (abs(ax) > 15) || (abs(ay) > 15) || (abs(az) > 15)
-  ) 
-  {
-    latitude = gps.location.lat();
-    longitude = gps.location.lng();
-    if ((latitude == 0) || (longitude == 0))
-    {
-      latitude = -6.354758804041;
-      longitude = 106.775315014374;
-    }
-    String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
-    pesan2 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
-    bot.sendMessage(CHAT_ID, pesan2);
-    Serial.println("Mengirim pesan : \n" + String(pesan2));
-
-    Serial.println("🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan");
-    // Tambahkan aksi tambahan seperti buzzer, notifikasi, dll
-  } 
-  else {}
-}
-
 // Deklarasi MQTT -------------------------------------------------------------------------------------
 #include <PubSubClient.h>
 
@@ -449,6 +367,8 @@ WiFiClient espClient;
 PubSubClient mqttclient(espClient);
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE  (50)
+
+String nilaiJam = "0", nilaiMenit = "0", nilaiDetik = "0";
 
 void reconnect() {
   // Loop until we're reconnected
@@ -491,8 +411,6 @@ void mqttLoop() {
     lastMsg = now;
     
     // Buat String nilai
-    
-    String nilaiJam, nilaiMenit, nilaiDetik;
     int nilaiJam1 = gps.time.hour() + 7;
     if (nilaiJam1 > 24) {
       nilaiJam1 = nilaiJam1 - 24;
@@ -544,6 +462,133 @@ void mqttLoop() {
   }
 }
 
+// Deteksi jatuh ------------------------------------------------------------------------------------------------------------------------
+unsigned long fallStartTime = 0;
+const unsigned long fallThresholdTime = 60000; // 60 detik
+bool fallDetected = false;
+
+void dataKecelakaan() {
+  if (!mqttclient.connected()) {
+    reconnect();
+  }
+  mqttclient.loop();
+
+  // Kirim data kecelakaan
+  // Buat JSON string
+  String payloadKecelakaan = "{";
+  payloadKecelakaan += "\"ax\":\"" + String(ax) + "\",";
+  payloadKecelakaan += "\"ay\":\"" + String(ay) + "\",";
+  payloadKecelakaan += "\"az\":\"" + String(az) + "\",";
+  payloadKecelakaan += "\"satelit\":\"" + String(gps.satellites.value()) + "\",";
+  payloadKecelakaan += "\"latitude\":\"" + String(gps.location.lat(), 6) + "\",";
+  payloadKecelakaan += "\"longitude\":\"" + String(gps.location.lng(), 6) + "\",";
+  payloadKecelakaan += "\"tanggal\":\"" + String(gps.date.day()) + "\",";
+  payloadKecelakaan += "\"bulan\":\"" + String(gps.date.month()) + "\",";
+  payloadKecelakaan += "\"tahun\":\"" + String(gps.date.year()) + "\",";
+  payloadKecelakaan += "\"jam\":\"" + nilaiJam + "\",";
+  payloadKecelakaan += "\"menit\":\"" + nilaiMenit + "\",";
+  payloadKecelakaan += "\"detik\":\"" + nilaiDetik + "\"";
+  payloadKecelakaan += "}";
+
+  mqttclient.publish("musfa/proter/kecelakaan", payloadKecelakaan.c_str());
+}
+
+void cekJatuh()
+{
+  // Cek kondisi helm miring selama lebih dari 1 menit
+  bool isFallen =
+    // (abs(ax) > 8.5 && abs(ay) < 3 && abs(az) < 3) ||
+    // (abs(ay) > 8.5 && abs(ax) < 3 && abs(az) < 3) ||
+    // (abs(ay) > 5 && abs(ax) < 3 && abs(az) > 5) ||
+    // (abs(ax) > 5 && abs(ay) < 3 && abs(az) > 5)
+    az < 5;
+
+  // Jatuh 1 jika helm pengguna terus menerus miring selama 1 menit
+  if (isFallen && getar == 1) 
+  {
+    fallDetected = true;
+    latitude = gps.location.lat();
+    longitude = gps.location.lng();
+    if ((latitude == 0) || (longitude == 0))
+    {
+      latitude = -6.354758804041;
+      longitude = 106.775315014374;
+    }
+    String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
+    pesan1 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
+    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
+    // bot.sendMessage(CHAT_ID, pesan1);
+
+    bool response1 = bot.sendMessage(CHAT_ID, pesan1);
+
+    // Cek apakah respons dari server Telegram valid
+    if (response1 == true) {
+      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+    } else {
+      Serial.println("❌ Gagal mengirim pesan.");
+      Serial.println("Respons Telegram:");
+      Serial.println(response1);
+    }
+
+    Serial.println("Mengirim pesan : \n" + String(pesan1));
+    Serial.println("🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi");
+    Serial.println();
+
+    // Kirim data kecelakaan
+    dataKecelakaan();
+
+    // Tambahkan aksi di sini: notifikasi, buzzer, dll
+    fallStartTime = millis();
+    fallDetected = false;
+  } 
+  else 
+  {
+    fallStartTime = 0; // reset waktu jika orientasi kembali normal
+    fallDetected = false;
+  }
+
+  // Jatuh 2 jika pengguna mengalami benturan dari sisi sampinng kanan kiri atau depan belakang, serta mengalami percepatan mendadak
+  if 
+  (/*abs(az) > 8.5 && (abs(ax) > 9.0 || abs(ay) > 9.0)*/ 
+    (abs(ax) > 10 && abs(ay) > 10) || (abs(ax) > 10 && abs(az) > 10) || (abs(az) > 10 && abs(ay) > 10) ||
+    (abs(ax) > 15) || (abs(ay) > 15) || (abs(az) > 15)
+  ) 
+  {
+    latitude = gps.location.lat();
+    longitude = gps.location.lng();
+    if ((latitude == 0) || (longitude == 0))
+    {
+      latitude = -6.354758804041;
+      longitude = 106.775315014374;
+    }
+    String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
+    pesan2 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
+    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
+    // bot.sendMessage(CHAT_ID, pesan2);
+
+    bool response2 = bot.sendMessage(CHAT_ID, pesan2);
+
+    // Cek apakah respons dari server Telegram valid
+    if (response2 == true) {
+      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+    } else {
+      Serial.println("❌ Gagal mengirim pesan.");
+      Serial.println("Respons Telegram:");
+      Serial.println(response2);
+    }
+
+    Serial.println("Mengirim pesan : \n" + String(pesan2));
+    Serial.println("🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan");
+    Serial.println();
+
+    // Kirim data kecelakaan
+    dataKecelakaan();
+
+    // Tambahkan aksi tambahan seperti buzzer, notifikasi, dll
+  } 
+  else {}
+}
+
 // --------------------------------------------
 
 void setup()
@@ -565,7 +610,7 @@ void loop()
   // cek_pesan();
   mpuLoop();
   swLoop();
-  cekJatuh();
   mqttLoop();
+  cekJatuh();
   delay(50);
 }
