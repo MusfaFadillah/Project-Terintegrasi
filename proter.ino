@@ -340,7 +340,7 @@ void mpuLoop()
 // Deklarasi SW420 ------------------------------------------------------------------------------------------------------------------------
 #define swPin 12
 
-int getar;
+int getar = 0, statusGetarNow, statusGetarPrev = 0;
 
 // Setup SW420 ------------------------------------------------------------------------------------------------------------------------
 void swSetup()
@@ -351,10 +351,13 @@ void swSetup()
 // Loop SW420 ------------------------------------------------------------------------------------------------------------------------
 void swLoop()
 {
-  getar = digitalRead(swPin);
-  if (getar == 1) {
+  statusGetarNow = digitalRead(swPin);
+  if (statusGetarNow != statusGetarPrev) {
+    getar = statusGetarNow;
+    statusGetarPrev = statusGetarNow;
     Serial.print("Nilai sensor Sw-420 : " + String(getar) + "\n");
   }
+  else {}
 }
 
 // Deklarasi MQTT -------------------------------------------------------------------------------------
