@@ -521,7 +521,7 @@ void cekJatuh()
     }
     String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
     pesan1 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
+    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=" + String(latitude, 12) + "," + String(longitude, 12);
     // bot.sendMessage(CHAT_ID, pesan1);
 
     bool response1 = bot.sendMessage(CHAT_ID, pesan1);
@@ -568,7 +568,7 @@ void cekJatuh()
     }
     String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
     pesan2 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
+    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=" + String(latitude, 12) + "," + String(longitude, 12);
     // bot.sendMessage(CHAT_ID, pesan2);
 
     bool response2 = bot.sendMessage(CHAT_ID, pesan2);
