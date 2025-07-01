@@ -446,6 +446,7 @@ void mqttLoop() {
     payload += "\"ax\":\"" + String(ax) + "\",";
     payload += "\"ay\":\"" + String(ay) + "\",";
     payload += "\"az\":\"" + String(az) + "\",";
+    payload += "\"getar\":\"" + String(getar) + "\",";
     payload += "\"satelit\":\"" + String(gps.satellites.value()) + "\",";
     payload += "\"latitude\":\"" + String(gps.location.lat(), 6) + "\",";
     payload += "\"longitude\":\"" + String(gps.location.lng(), 6) + "\",";
@@ -482,6 +483,7 @@ void dataKecelakaan() {
   payloadKecelakaan += "\"ax\":\"" + String(ax) + "\",";
   payloadKecelakaan += "\"ay\":\"" + String(ay) + "\",";
   payloadKecelakaan += "\"az\":\"" + String(az) + "\",";
+  payloadKecelakaan += "\"getar\":\"" + String(getar) + "\",";
   payloadKecelakaan += "\"satelit\":\"" + String(gps.satellites.value()) + "\",";
   payloadKecelakaan += "\"latitude\":\"" + String(gps.location.lat(), 6) + "\",";
   payloadKecelakaan += "\"longitude\":\"" + String(gps.location.lng(), 6) + "\",";
