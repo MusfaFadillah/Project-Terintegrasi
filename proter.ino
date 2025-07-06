@@ -126,14 +126,14 @@ void gpsLoop()
 #include <ArduinoJson.h>
 #include <UniversalTelegramBot.h>
 
-#define ssid "XxX"
-#define password "12345678"
+#define ssid_wifi "XxX"
+#define password_wifi "12345678"
 
-#define token "7188460217:AAFE5WGB32C7tT-7bzPpY662kfyC6psOocY"
+#define token_telegram "7188460217:AAFE5WGB32C7tT-7bzPpY662kfyC6psOocY"
 #define CHAT_ID "6383860034"
 
 WiFiClientSecure client;
-UniversalTelegramBot bot(token, client);
+UniversalTelegramBot bot(token_telegram, client);
 
 int interval = 1000;
 unsigned long waktu_terakhir;
@@ -206,14 +206,16 @@ void telegramSetup()
 {
   // coba connect ke wifi
   Serial.print("Connecting to Wifi SSID ");
-  Serial.print(ssid);
-  WiFi.begin(ssid, password);
+  Serial.print(ssid_wifi);
+  WiFi.begin(ssid_wifi, password_wifi);
   client.setCACert(TELEGRAM_CERTIFICATE_ROOT);  // Add root certificate for api.telegram.org
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
-  Serial.print("\nBerhasil terhubung ke WiFi : " + String(ssid) + "\n");
+  Serial.print("\nBerhasil terhubung ke WiFi : ");
+  Serial.print(String(ssid_wifi));
+  Serial.print("\n");
 
   // IP Address
   Serial.print("IP Address : ");
@@ -226,7 +228,9 @@ void telegramSetup()
     delay(100);
     now = time(nullptr);
   }
-  Serial.println("\n" + String(now) + "\n");
+  Serial.print("\n");
+  Serial.print(String(now));
+  Serial.println("\n");
 }
 
 // Deklarasi MPU6050 ------------------------------------------------------------------------------------------------------------------------
@@ -337,7 +341,13 @@ void mpuLoop()
 
     // Print nilai sensor
     Serial.print("Sensor MPU6050 :\n");
-    Serial.print("ax = " + String(ax) + "  |  ay = " + String(ay) + "  |  az = " + String(az) + "\n");
+    Serial.print("ax = ");
+    Serial.print(String(ax));
+    Serial.print("  |  ay = ");
+    Serial.print(String(ay));
+    Serial.print("  |  az = ");
+    Serial.print(String(az));
+    Serial.print("\n");
     Serial.println();
   }
 }
@@ -360,7 +370,9 @@ void swLoop()
   if (statusGetarNow != statusGetarPrev) {
     getar = statusGetarNow;
     statusGetarPrev = statusGetarNow;
-    Serial.print("Nilai sensor Sw-420 : " + String(getar) + "\n");
+    Serial.print("Nilai sensor Sw-420 : ");
+    Serial.print(String(getar));
+    Serial.print("\n");
   }
   else {}
 }
@@ -426,7 +438,8 @@ void mqttLoop() {
       nilaiJam1 = nilaiJam1 - 24;
     }
     if (nilaiJam1 < 10) {
-      nilaiJam = "0" + String(nilaiJam1);
+      nilaiJam = "0";
+      nilaiJam += String(nilaiJam1);
     }
     else {
       nilaiJam = String(nilaiJam1);
@@ -434,7 +447,8 @@ void mqttLoop() {
     // ---
     int nilaiMenit1 = gps.time.minute();
     if (nilaiMenit1 < 10) {
-      nilaiMenit = "0" + String(nilaiMenit1);
+      nilaiMenit = "0";
+      nilaiMenit += String(nilaiMenit1);
     }
     else {
       nilaiMenit = String(nilaiMenit1);
@@ -442,7 +456,8 @@ void mqttLoop() {
     // ---
     int nilaiDetik1 = gps.time.second();
     if (nilaiDetik1 < 10) {
-      nilaiDetik = "0" + String(nilaiDetik1);
+      nilaiDetik = "0";
+      nilaiDetik += String(nilaiDetik1);
     }
     else {
       nilaiDetik = String(nilaiDetik1);
@@ -450,20 +465,63 @@ void mqttLoop() {
 
     // Buat JSON string
     String payload = "{";
-    payload += "\"ax\":\"" + String(ax) + "\",";
-    payload += "\"ay\":\"" + String(ay) + "\",";
-    payload += "\"az\":\"" + String(az) + "\",";
-    payload += "\"getar\":\"" + String(getar) + "\",";
-    payload += "\"satelit\":\"" + String(gps.satellites.value()) + "\",";
-    payload += "\"latitude\":\"" + String(gps.location.lat(), 6) + "\",";
-    payload += "\"longitude\":\"" + String(gps.location.lng(), 6) + "\",";
-    payload += "\"tanggal\":\"" + String(gps.date.day()) + "\",";
-    payload += "\"bulan\":\"" + String(gps.date.month()) + "\",";
-    payload += "\"tahun\":\"" + String(gps.date.year()) + "\",";
-    payload += "\"jam\":\"" + nilaiJam + "\",";
-    payload += "\"menit\":\"" + nilaiMenit + "\",";
-    payload += "\"detik\":\"" + nilaiDetik + "\"";
-    payload += "\"status\":\"" + String(statusKecelakaan) + "\"";
+
+    payload += "\"ax\":\"";
+    payload += String(ax);
+    payload += "\",";
+
+    payload += "\"ay\":\"";
+    payload += String(ay);
+    payload += "\",";
+
+    payload += "\"az\":\"";
+    payload += String(az);
+    payload += "\",";
+
+    payload += "\"getar\":\"";
+    payload += String(getar);
+    payload += "\",";
+
+    payload += "\"satelit\":\"";
+    payload += String(gps.satellites.value());
+    payload += "\",";
+
+    payload += "\"latitude\":\"";
+    payload += String(gps.location.lat(), 6);
+    payload += "\",";
+
+    payload += "\"longitude\":\"";
+    payload += String(gps.location.lng(), 6);
+    payload += "\",";
+
+    payload += "\"tanggal\":\"";
+    payload += String(gps.date.day());
+    payload += "\",";
+
+    payload += "\"bulan\":\"";
+    payload += String(gps.date.month());
+    payload += "\",";
+
+    payload += "\"tahun\":\"";
+    payload += String(gps.date.year());
+    payload += "\",";
+
+    payload += "\"jam\":\"";
+    payload += String(nilaiJam);
+    payload += "\",";
+
+    payload += "\"menit\":\"";
+    payload += String(nilaiMenit);
+    payload += "\",";
+
+    payload += "\"detik\":\"";
+    payload += String(nilaiDetik);
+    payload += "\",";
+
+    payload += "\"status\":\"";
+    payload += String(statusKecelakaan);
+    payload += "\"";
+
     payload += "}";
 
     Serial.println(payload);
@@ -488,20 +546,63 @@ void dataKecelakaan() {
   // Kirim data kecelakaan
   // Buat JSON string
   String payloadKecelakaan = "{";
-  payloadKecelakaan += "\"ax\":\"" + String(ax) + "\",";
-  payloadKecelakaan += "\"ay\":\"" + String(ay) + "\",";
-  payloadKecelakaan += "\"az\":\"" + String(az) + "\",";
-  payloadKecelakaan += "\"getar\":\"" + String(getar) + "\",";
-  payloadKecelakaan += "\"satelit\":\"" + String(gps.satellites.value()) + "\",";
-  payloadKecelakaan += "\"latitude\":\"" + String(gps.location.lat(), 6) + "\",";
-  payloadKecelakaan += "\"longitude\":\"" + String(gps.location.lng(), 6) + "\",";
-  payloadKecelakaan += "\"tanggal\":\"" + String(gps.date.day()) + "\",";
-  payloadKecelakaan += "\"bulan\":\"" + String(gps.date.month()) + "\",";
-  payloadKecelakaan += "\"tahun\":\"" + String(gps.date.year()) + "\",";
-  payloadKecelakaan += "\"jam\":\"" + nilaiJam + "\",";
-  payloadKecelakaan += "\"menit\":\"" + nilaiMenit + "\",";
-  payloadKecelakaan += "\"detik\":\"" + nilaiDetik + "\"";
-  payloadKecelakaan += "\"status\":\"" + String(statusKecelakaan) + "\"";
+
+  payloadKecelakaan += "\"ax\":\"";
+  payloadKecelakaan += String(ax);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"ay\":\"";
+  payloadKecelakaan += String(ay);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"az\":\"";
+  payloadKecelakaan += String(az);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"getar\":\"";
+  payloadKecelakaan += String(getar);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"satelit\":\"";
+  payloadKecelakaan += String(gps.satellites.value());
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"latitude\":\"";
+  payloadKecelakaan += String(gps.location.lat(), 6);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"longitude\":\"";
+  payloadKecelakaan += String(gps.location.lng(), 6);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"tanggal\":\"";
+  payloadKecelakaan += String(gps.date.day());
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"bulan\":\"";
+  payloadKecelakaan += String(gps.date.month());
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"tahun\":\"";
+  payloadKecelakaan += String(gps.date.year());
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"jam\":\"";
+  payloadKecelakaan += String(nilaiJam);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"menit\":\"";
+  payloadKecelakaan += String(nilaiMenit);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"detik\":\"";
+  payloadKecelakaan += String(nilaiDetik);
+  payloadKecelakaan += "\",";
+
+  payloadKecelakaan += "\"status\":\"";
+  payloadKecelakaan += String(statusKecelakaan);
+  payloadKecelakaan += "\"";
+
   payloadKecelakaan += "}";
 
   mqttclient.publish("musfa/proter/kecelakaan", payloadKecelakaan.c_str());
@@ -533,8 +634,14 @@ void cekJatuh()
       longitude = 106.775315014374;
     }
     String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
-    pesan1 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=" + String(latitude, 12) + "," + String(longitude, 12);
+    pesan1 += "\nLokasi saat ini : ";
+    pesan1 += String(latitude, 12);
+    pesan1 += ", ";
+    pesan1 += String(longitude, 12);
+    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+    pesan1 += String(latitude, 12);
+    pesan1 += ",";
+    pesan1 += String(longitude, 12);
     // bot.sendMessage(CHAT_ID, pesan1);
 
     bool response1 = bot.sendMessage(CHAT_ID, pesan1);
@@ -548,7 +655,8 @@ void cekJatuh()
       Serial.println(response1);
     }
 
-    Serial.println("Mengirim pesan : \n" + String(pesan1));
+    Serial.print("Mengirim pesan : \n");
+    Serial.println(String(pesan1));
     Serial.println("🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi");
     Serial.println();
 
@@ -584,8 +692,14 @@ void cekJatuh()
       longitude = 106.775315014374;
     }
     String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
-    pesan2 += "\nLokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=" + String(latitude, 12) + "," + String(longitude, 12);
+    pesan2 += "\nLokasi saat ini : ";
+    pesan2 += String(latitude, 12);
+    pesan2 += ", ";
+    pesan2 += String(longitude, 12);
+    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+    pesan2 += String(latitude, 12);
+    pesan2 += ",";
+    pesan2 += String(longitude, 12);
     // bot.sendMessage(CHAT_ID, pesan2);
 
     bool response2 = bot.sendMessage(CHAT_ID, pesan2);
@@ -599,7 +713,8 @@ void cekJatuh()
       Serial.println(response2);
     }
 
-    Serial.println("Mengirim pesan : \n" + String(pesan2));
+    Serial.print("Mengirim pesan : \n");
+    Serial.println(String(pesan2));
     Serial.println("🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan");
     Serial.println();
 
@@ -614,6 +729,56 @@ void cekJatuh()
   }
 }
 
+// Firebase --------------------------------------------------
+#include <Firebase_ESP_Client.h>
+
+#define Web_API_KEY "AIzaSyAf-g56dpov5Bx4UuLIJjl3IpCIOREOiSU"
+#define DATABASE_URL "https://project-terintegrasi-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
+// FirebaseESP32 Firebase;
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+// Timer variables for sending data every 10 seconds
+unsigned long prevMillisFirebase = 0;
+const unsigned long intervalFirebase = 1000; // 10 seconds in milliseconds
+
+void firebaseSetup()
+{
+  config.api_key = Web_API_KEY;
+  config.database_url = DATABASE_URL;
+
+  if (Firebase.signUp(&config, &auth, "", ""))
+  {
+    Serial.println("Terhubung ke firebase");
+  }
+  else
+  {
+    Serial.printf("%s\n", config.signer.signupError.message.c_str());
+  }
+
+  Firebase.begin(&config, &auth);
+}
+
+void firebaseLoop()
+{
+  // Periodic data sending every 10 seconds
+  if (currentMillis - prevMillisFirebase >= intervalFirebase){
+    // Update the last send time
+    prevMillisFirebase = currentMillis;
+
+    Firebase.RTDB.setString(&fbdo, "/proter/ax", ax);
+    Firebase.RTDB.setString(&fbdo, "/proter/ay", ay);
+    Firebase.RTDB.setString(&fbdo, "/proter/az", az);
+    Firebase.RTDB.setString(&fbdo, "/proter/getar", getar);
+    Firebase.RTDB.setString(&fbdo, "/proter/satelit", gps.satellites.value());
+    Firebase.RTDB.setString(&fbdo, "/proter/latitude", String(gps.location.lat(), 6));
+    Firebase.RTDB.setString(&fbdo, "/proter/longitude", String(gps.location.lng(), 6));
+    Firebase.RTDB.setString(&fbdo, "/proter/status", statusKecelakaan);
+  }
+}
+
 // --------------------------------------------
 
 void setup()
@@ -622,6 +787,7 @@ void setup()
 
   telegramSetup();
   mqttSetup();
+  firebaseSetup();
   gpsSetup();
   mpuSetup();
   swSetup();
@@ -639,5 +805,6 @@ void loop()
   swLoop();
   cekJatuh();
   mqttLoop();
+  firebaseLoop();
   delay(50);
 }
