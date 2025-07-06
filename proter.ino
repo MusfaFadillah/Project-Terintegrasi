@@ -92,6 +92,11 @@ void displayInfo()
   Serial.println();
 }
 
+void gpsSetup()
+{
+  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
+}
+
 void gpsLoop()
 {
   // This sketch displays information every time a new sentence is correctly encoded.
@@ -373,6 +378,8 @@ unsigned long lastMsg = 0;
 
 String nilaiJam = "0", nilaiMenit = "0", nilaiDetik = "0";
 
+int statusKecelakaan = 0;
+
 void reconnect() {
   // Loop until we're reconnected
   while (!mqttclient.connected()) {
@@ -456,6 +463,7 @@ void mqttLoop() {
     payload += "\"jam\":\"" + nilaiJam + "\",";
     payload += "\"menit\":\"" + nilaiMenit + "\",";
     payload += "\"detik\":\"" + nilaiDetik + "\"";
+    payload += "\"status\":\"" + String(statusKecelakaan) + "\"";
     payload += "}";
 
     Serial.println(payload);
@@ -493,6 +501,7 @@ void dataKecelakaan() {
   payloadKecelakaan += "\"jam\":\"" + nilaiJam + "\",";
   payloadKecelakaan += "\"menit\":\"" + nilaiMenit + "\",";
   payloadKecelakaan += "\"detik\":\"" + nilaiDetik + "\"";
+  payloadKecelakaan += "\"status\":\"" + String(statusKecelakaan) + "\"";
   payloadKecelakaan += "}";
 
   mqttclient.publish("musfa/proter/kecelakaan", payloadKecelakaan.c_str());
@@ -507,10 +516,14 @@ void cekJatuh()
     // (abs(ay) > 5 && abs(ax) < 3 && abs(az) > 5) ||
     // (abs(ax) > 5 && abs(ay) < 3 && abs(az) > 5)
     az < 5;
+  
+  statusKecelakaan = 0;
 
   // Jatuh 1 jika helm pengguna terus menerus miring selama 1 menit
   if (isFallen && getar == 1) 
   {
+    statusKecelakaan = 1;
+    
     fallDetected = true;
     latitude = gps.location.lat();
     longitude = gps.location.lng();
@@ -548,6 +561,8 @@ void cekJatuh()
   } 
   else 
   {
+    statusKecelakaan = 0;
+
     fallStartTime = 0; // reset waktu jika orientasi kembali normal
     fallDetected = false;
   }
@@ -559,6 +574,8 @@ void cekJatuh()
     (abs(ax) > 15) || (abs(ay) > 15) || (abs(az) > 15)
   ) 
   {
+    statusKecelakaan = 1;
+
     latitude = gps.location.lat();
     longitude = gps.location.lng();
     if ((latitude == 0) || (longitude == 0))
@@ -591,7 +608,10 @@ void cekJatuh()
 
     // Tambahkan aksi tambahan seperti buzzer, notifikasi, dll
   } 
-  else {}
+  else
+  {
+    statusKecelakaan = 0;
+  }
 }
 
 // --------------------------------------------
@@ -599,11 +619,12 @@ void cekJatuh()
 void setup()
 {
   Serial.begin(115200);
-  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
+
   telegramSetup();
+  mqttSetup();
+  gpsSetup();
   mpuSetup();
   swSetup();
-  mqttSetup();
 }
 
 // --------------------------------------------
@@ -611,11 +632,12 @@ void setup()
 void loop()
 {
   currentMillis = millis();
+
   gpsLoop();
   // cek_pesan();
   mpuLoop();
   swLoop();
-  mqttLoop();
   cekJatuh();
+  mqttLoop();
   delay(50);
 }
