@@ -1,7 +1,8 @@
 #include <Arduino.h>
 unsigned long currentMillis;
+int statusKecelakaan = 0;
 
-// Deklarasi GPS ------------------------------------------------------------------------------------------------------------------------------------
+// Deklarasi GPS --------------------------------------------------
 #include <TinyGPSPlus.h>
 /*
    This sample sketch demonstrates the normal use of a TinyGPSPlus (TinyGPSPlus) object.
@@ -13,10 +14,11 @@ unsigned long currentMillis;
 #define TXD2 17
 #define GPS_BAUD 9600
 
-unsigned long previousMillisGps = 0; // waktu terakhir sensor dibaca
-const long intervalGps = 5000;       // jeda waktu (10 detik = 10000 ms)
+unsigned long prevMillisPrintGps = 0, prevMillisReadGps = 0; // waktu terakhir sensor dibaca
+const unsigned long intervalPrintGps = 5000, intervalReadGps = 1000; // jeda waktu (10 detik = 10000 ms)
 
 double latitude, longitude;
+int jam, menit, detik, tanggal, bulan, tahun, satelit;
 
 // The TinyGPS++ object
 TinyGPSPlus gps;
@@ -24,7 +26,6 @@ TinyGPSPlus gps;
 // Create an instance of the HardwareSerial class for Serial 2
 HardwareSerial gpsSerial(2);
 
-// GPS Loop ------------------------------------------------------------------------------------------------------------------------------------
 void displayInfo()
 {
   Serial.print("Sensor GPS :\n");
@@ -92,11 +93,13 @@ void displayInfo()
   Serial.println();
 }
 
+// GPS Setup --------------------------------------------------
 void gpsSetup()
 {
   gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
 }
 
+// GPS Loop --------------------------------------------------
 void gpsLoop()
 {
   // This sketch displays information every time a new sentence is correctly encoded.
@@ -104,10 +107,29 @@ void gpsLoop()
     if (gps.encode(gpsSerial.read())) {
 
       // Cek apakah waktu jeda sudah tercapai
-      if (currentMillis - previousMillisGps >= intervalGps) {
-        previousMillisGps = currentMillis;
+      if (currentMillis - prevMillisReadGps >= intervalReadGps) {
+        prevMillisReadGps = currentMillis;
 
-        // Baca sensor
+        // Baca data sensor
+        satelit = gps.satellites.value();
+        latitude = gps.location.lat();
+        longitude = gps.location.lng();
+        jam = gps.time.hour();
+        if (jam > 24) {
+          jam = jam - 24;
+        }
+        menit = gps.time.minute();
+        detik = gps.time.second();
+        tanggal = gps.date.day();
+        bulan = gps.date.month();
+        tahun = gps.date.year();
+      }
+
+      // Cek apakah waktu jeda sudah tercapai
+      if (currentMillis - prevMillisPrintGps >= intervalPrintGps) {
+        prevMillisPrintGps = currentMillis;
+
+        // Tampilkan data sensor
         displayInfo();
       }
     }
@@ -119,133 +141,19 @@ void gpsLoop()
   }
 }
 
-// Deklarasi Telegram ------------------------------------------------------------------------------------------------------------------------------------
-
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
-#include <UniversalTelegramBot.h>
-
-#define ssid_wifi "XxX"
-#define password_wifi "12345678"
-
-#define token_telegram "7188460217:AAFE5WGB32C7tT-7bzPpY662kfyC6psOocY"
-#define CHAT_ID "6383860034"
-
-WiFiClientSecure client;
-UniversalTelegramBot bot(token_telegram, client);
-
-int interval = 1000;
-unsigned long waktu_terakhir;
-
-// void handleNewMessages(int numNewMessages) {
-//   Serial.println("handleNewMessages");
-//   Serial.println(String(numNewMessages));
-
-//   for (int i=0; i<numNewMessages; i++) {
-    
-//     // Cek Chat ID
-//     String chat_id = String(bot.messages[i].chat_id);
-//     if (chat_id != CHAT_ID) {
-//       bot.sendMessage(chat_id, "Unauthorized user", "");
-//       continue;
-//     }
-    
-//     // Terima pesan dari telegram
-//     String text = bot.messages[i].text;
-//     Serial.println(text);
-
-//     String from_name = bot.messages[i].from_name;
-//     if (from_name == "") {
-//       from_name = "Guest";
-//     }
-
-//     if (text == "/start") {
-//       String welcome = "Selamat datang di sistem helm pintar otomatis";
-//       bot.sendMessage(CHAT_ID, welcome);
-//       Serial.println("Mengirim pesan : " + String(welcome));
-//     }
-
-//     if (text == "/maps") {
-//       while (ss.available() > 0) {
-//         if (gps.encode(ss.read()))
-//           displayInfo();
-//       }
-
-//       latitude = gps.location.lat();
-//       longitude = gps.location.lng();
-      
-//       if ((latitude == 0) || (longitude == 0))
-//       {
-//         latitude = -6.354758804041;
-//         longitude = 106.775315014374;
-//       }
-//       String koordinat = "Lokasi saat ini : " + String(latitude, 12) + ", " + String(longitude, 12);
-//       koordinat += "\nLink lokasi saat ini : https://www.google.com/maps/@" + String(latitude, 12) + "," + String(longitude, 12) + ",21z?entry=ttu";
-//       bot.sendMessage(CHAT_ID, koordinat);
-//       Serial.println("Mengirim pesan : \n" + String(koordinat));
-//     }
-//   }
-// }
-
-// void cek_pesan() {
-//   if (millis() > waktu_terakhir + interval){
-//     int banyakPesan = bot.getUpdates(bot.last_message_received + 1);
-  
-//     while(banyakPesan) {
-//       Serial.println("\ngot response");
-//       handleNewMessages(banyakPesan);
-//       banyakPesan = bot.getUpdates(bot.last_message_received + 1);
-//     }
-//     waktu_terakhir = millis();
-//   }
-// }
-
-// Setup Telegram ------------------------------------------------------------------------------------------------------------------------------------
-void telegramSetup()
-{
-  // coba connect ke wifi
-  Serial.print("Connecting to Wifi SSID ");
-  Serial.print(ssid_wifi);
-  WiFi.begin(ssid_wifi, password_wifi);
-  client.setCACert(TELEGRAM_CERTIFICATE_ROOT);  // Add root certificate for api.telegram.org
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.print("\nBerhasil terhubung ke WiFi : ");
-  Serial.print(String(ssid_wifi));
-  Serial.print("\n");
-
-  // IP Address
-  Serial.print("IP Address : ");
-  Serial.println(WiFi.localIP());
-  Serial.print("Atur Waktu: ");
-  configTime(0, 0, "pool.ntp.org"); 
-  time_t now = time(nullptr);
-  while (now < 24 * 3600) {
-    Serial.print(".");
-    delay(100);
-    now = time(nullptr);
-  }
-  Serial.print("\n");
-  Serial.print(String(now));
-  Serial.println("\n");
-}
-
-// Deklarasi MPU6050 ------------------------------------------------------------------------------------------------------------------------
+// Deklarasi MPU6050 --------------------------------------------------
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
 Adafruit_MPU6050 mpu;
 
-unsigned long previousMillisMpu = 0; // waktu terakhir sensor dibaca
-const long intervalMpu = 5000;       // jeda waktu (10 detik = 10000 ms)
+unsigned long prevMillisPrintMpu = 0; // waktu terakhir sensor dibaca
+const unsigned long intervalPrintMpu = 5000;       // jeda waktu (10 detik = 10000 ms)
 
 float ax, ay, az;
 
-// Setup MPU6050 ------------------------------------------------------------------------------------------------------------------------
+// MPU6050 Setup --------------------------------------------------
 void mpuSetup()
 {
   while (!Serial)
@@ -327,7 +235,7 @@ void mpuSetup()
   }
 }
 
-// Loop MPU6050 ------------------------------------------------------------------------------------------------------------------------
+// MPU6050 Loop --------------------------------------------------
 void mpuLoop()
 {
   sensors_event_t a, g, temp;
@@ -336,8 +244,8 @@ void mpuLoop()
   ay = a.acceleration.y;
   az = a.acceleration.z;
 
-  if (currentMillis - previousMillisMpu >= intervalMpu) {
-    previousMillisMpu = currentMillis;
+  if (currentMillis - prevMillisPrintMpu >= intervalPrintMpu) {
+    prevMillisPrintMpu = currentMillis;
 
     // Print nilai sensor
     Serial.print("Sensor MPU6050 :\n");
@@ -352,18 +260,18 @@ void mpuLoop()
   }
 }
 
-// Deklarasi SW420 ------------------------------------------------------------------------------------------------------------------------
+// Deklarasi SW420 --------------------------------------------------
 #define swPin 12
 
 int getar = 0, statusGetarNow, statusGetarPrev = 0;
 
-// Setup SW420 ------------------------------------------------------------------------------------------------------------------------
+// SW420 Setup --------------------------------------------------
 void swSetup()
 {
   pinMode(swPin, INPUT);
 }
 
-// Loop SW420 ------------------------------------------------------------------------------------------------------------------------
+// SW420 Loop --------------------------------------------------
 void swLoop()
 {
   statusGetarNow = digitalRead(swPin);
@@ -374,362 +282,56 @@ void swLoop()
     Serial.print(String(getar));
     Serial.print("\n");
   }
-  else {}
 }
 
-// Deklarasi MQTT -------------------------------------------------------------------------------------
-#include <PubSubClient.h>
+// Deklarasi Telegram --------------------------------------------------
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+#include <UniversalTelegramBot.h>
 
-const char* mqtt_server = "broker.hivemq.com";
-int intervalMqtt = 1000;
+#define ssid_wifi "XxX"
+#define password_wifi "12345678"
 
-WiFiClient espClient;
-PubSubClient mqttclient(espClient);
-unsigned long lastMsg = 0;
-#define MSG_BUFFER_SIZE  (50)
+#define token_telegram "7188460217:AAFE5WGB32C7tT-7bzPpY662kfyC6psOocY"
+#define CHAT_ID "6383860034"
 
-String nilaiJam = "0", nilaiMenit = "0", nilaiDetik = "0";
+WiFiClientSecure client;
+UniversalTelegramBot bot(token_telegram, client);
 
-int statusKecelakaan = 0;
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!mqttclient.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    // Attempt to connect
-    if (mqttclient.connect(clientId.c_str())) {
-      Serial.println("Connected");
-      // Once connected, publish an announcement...
-      mqttclient.publish("musfa/mqtt", "musfa");
-      // ... and resubscribe
-      mqttclient.subscribe("musfa/mqtt");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqttclient.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
-
-// MQTT Setup ------------------------------------------------------------------------------------------
-void mqttSetup() {
-  mqttclient.setServer(mqtt_server, 1883);
-}
-
-// MQTT Loop -------------------------------------------------------------------------------------------
-void mqttLoop() {
-  if (!mqttclient.connected()) {
-    reconnect();
-  }
-  mqttclient.loop();
-
-  unsigned long now = millis();
-  if (now - lastMsg > intervalMqtt) {
-    lastMsg = now;
-    
-    // Buat String nilai
-    int nilaiJam1 = gps.time.hour() + 7;
-    if (nilaiJam1 > 24) {
-      nilaiJam1 = nilaiJam1 - 24;
-    }
-    if (nilaiJam1 < 10) {
-      nilaiJam = "0";
-      nilaiJam += String(nilaiJam1);
-    }
-    else {
-      nilaiJam = String(nilaiJam1);
-    }
-    // ---
-    int nilaiMenit1 = gps.time.minute();
-    if (nilaiMenit1 < 10) {
-      nilaiMenit = "0";
-      nilaiMenit += String(nilaiMenit1);
-    }
-    else {
-      nilaiMenit = String(nilaiMenit1);
-    }
-    // ---
-    int nilaiDetik1 = gps.time.second();
-    if (nilaiDetik1 < 10) {
-      nilaiDetik = "0";
-      nilaiDetik += String(nilaiDetik1);
-    }
-    else {
-      nilaiDetik = String(nilaiDetik1);
-    }
-
-    // Buat JSON string
-    String payload = "{";
-
-    payload += "\"ax\":\"";
-    payload += String(ax);
-    payload += "\",";
-
-    payload += "\"ay\":\"";
-    payload += String(ay);
-    payload += "\",";
-
-    payload += "\"az\":\"";
-    payload += String(az);
-    payload += "\",";
-
-    payload += "\"getar\":\"";
-    payload += String(getar);
-    payload += "\",";
-
-    payload += "\"satelit\":\"";
-    payload += String(gps.satellites.value());
-    payload += "\",";
-
-    payload += "\"latitude\":\"";
-    payload += String(gps.location.lat(), 6);
-    payload += "\",";
-
-    payload += "\"longitude\":\"";
-    payload += String(gps.location.lng(), 6);
-    payload += "\",";
-
-    payload += "\"tanggal\":\"";
-    payload += String(gps.date.day());
-    payload += "\",";
-
-    payload += "\"bulan\":\"";
-    payload += String(gps.date.month());
-    payload += "\",";
-
-    payload += "\"tahun\":\"";
-    payload += String(gps.date.year());
-    payload += "\",";
-
-    payload += "\"jam\":\"";
-    payload += String(nilaiJam);
-    payload += "\",";
-
-    payload += "\"menit\":\"";
-    payload += String(nilaiMenit);
-    payload += "\",";
-
-    payload += "\"detik\":\"";
-    payload += String(nilaiDetik);
-    payload += "\",";
-
-    payload += "\"status\":\"";
-    payload += String(statusKecelakaan);
-    payload += "\"";
-
-    payload += "}";
-
-    Serial.println(payload);
-
-    mqttclient.publish("musfa/proter", payload.c_str());
-
-    Serial.println();
-  }
-}
-
-// Deteksi jatuh ------------------------------------------------------------------------------------------------------------------------
-unsigned long fallStartTime = 0;
-const unsigned long fallThresholdTime = 60000; // 60 detik
-bool fallDetected = false;
-
-void dataKecelakaan() {
-  if (!mqttclient.connected()) {
-    reconnect();
-  }
-  mqttclient.loop();
-
-  // Kirim data kecelakaan
-  // Buat JSON string
-  String payloadKecelakaan = "{";
-
-  payloadKecelakaan += "\"ax\":\"";
-  payloadKecelakaan += String(ax);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"ay\":\"";
-  payloadKecelakaan += String(ay);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"az\":\"";
-  payloadKecelakaan += String(az);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"getar\":\"";
-  payloadKecelakaan += String(getar);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"satelit\":\"";
-  payloadKecelakaan += String(gps.satellites.value());
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"latitude\":\"";
-  payloadKecelakaan += String(gps.location.lat(), 6);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"longitude\":\"";
-  payloadKecelakaan += String(gps.location.lng(), 6);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"tanggal\":\"";
-  payloadKecelakaan += String(gps.date.day());
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"bulan\":\"";
-  payloadKecelakaan += String(gps.date.month());
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"tahun\":\"";
-  payloadKecelakaan += String(gps.date.year());
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"jam\":\"";
-  payloadKecelakaan += String(nilaiJam);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"menit\":\"";
-  payloadKecelakaan += String(nilaiMenit);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"detik\":\"";
-  payloadKecelakaan += String(nilaiDetik);
-  payloadKecelakaan += "\",";
-
-  payloadKecelakaan += "\"status\":\"";
-  payloadKecelakaan += String(statusKecelakaan);
-  payloadKecelakaan += "\"";
-
-  payloadKecelakaan += "}";
-
-  mqttclient.publish("musfa/proter/kecelakaan", payloadKecelakaan.c_str());
-}
-
-void cekJatuh()
+// Telegram Setup --------------------------------------------------
+void telegramSetup()
 {
-  // Cek kondisi helm miring selama lebih dari 1 menit
-  bool isFallen =
-    // (abs(ax) > 8.5 && abs(ay) < 3 && abs(az) < 3) ||
-    // (abs(ay) > 8.5 && abs(ax) < 3 && abs(az) < 3) ||
-    // (abs(ay) > 5 && abs(ax) < 3 && abs(az) > 5) ||
-    // (abs(ax) > 5 && abs(ay) < 3 && abs(az) > 5)
-    az < 5;
-  
-  statusKecelakaan = 0;
-
-  // Jatuh 1 jika helm pengguna terus menerus miring selama 1 menit
-  if (isFallen && getar == 1) 
-  {
-    statusKecelakaan = 1;
-    
-    fallDetected = true;
-    latitude = gps.location.lat();
-    longitude = gps.location.lng();
-    if ((latitude == 0) || (longitude == 0))
-    {
-      latitude = -6.354758804041;
-      longitude = 106.775315014374;
-    }
-    String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
-    pesan1 += "\nLokasi saat ini : ";
-    pesan1 += String(latitude, 12);
-    pesan1 += ", ";
-    pesan1 += String(longitude, 12);
-    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
-    pesan1 += String(latitude, 12);
-    pesan1 += ",";
-    pesan1 += String(longitude, 12);
-    // bot.sendMessage(CHAT_ID, pesan1);
-
-    bool response1 = bot.sendMessage(CHAT_ID, pesan1);
-
-    // Cek apakah respons dari server Telegram valid
-    if (response1 == true) {
-      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
-    } else {
-      Serial.println("❌ Gagal mengirim pesan.");
-      Serial.println("Respons Telegram:");
-      Serial.println(response1);
-    }
-
-    Serial.print("Mengirim pesan : \n");
-    Serial.println(String(pesan1));
-    Serial.println("🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi");
-    Serial.println();
-
-    // Kirim data kecelakaan
-    dataKecelakaan();
-
-    // Tambahkan aksi di sini: notifikasi, buzzer, dll
-    fallStartTime = millis();
-    fallDetected = false;
-  } 
-  else 
-  {
-    statusKecelakaan = 0;
-
-    fallStartTime = 0; // reset waktu jika orientasi kembali normal
-    fallDetected = false;
+  // coba connect ke wifi
+  Serial.print("Connecting to Wifi SSID ");
+  Serial.print(ssid_wifi);
+  WiFi.begin(ssid_wifi, password_wifi);
+  client.setCACert(TELEGRAM_CERTIFICATE_ROOT);  // Add root certificate for api.telegram.org
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
   }
+  Serial.print("\nBerhasil terhubung ke WiFi : ");
+  Serial.print(String(ssid_wifi));
+  Serial.print("\n");
 
-  // Jatuh 2 jika pengguna mengalami benturan dari sisi sampinng kanan kiri atau depan belakang, serta mengalami percepatan mendadak
-  if 
-  (/*abs(az) > 8.5 && (abs(ax) > 9.0 || abs(ay) > 9.0)*/ 
-    (abs(ax) > 10 && abs(ay) > 10) || (abs(ax) > 10 && abs(az) > 10) || (abs(az) > 10 && abs(ay) > 10) ||
-    (abs(ax) > 15) || (abs(ay) > 15) || (abs(az) > 15)
-  ) 
-  {
-    statusKecelakaan = 1;
-
-    latitude = gps.location.lat();
-    longitude = gps.location.lng();
-    if ((latitude == 0) || (longitude == 0))
-    {
-      latitude = -6.354758804041;
-      longitude = 106.775315014374;
-    }
-    String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
-    pesan2 += "\nLokasi saat ini : ";
-    pesan2 += String(latitude, 12);
-    pesan2 += ", ";
-    pesan2 += String(longitude, 12);
-    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
-    pesan2 += String(latitude, 12);
-    pesan2 += ",";
-    pesan2 += String(longitude, 12);
-    // bot.sendMessage(CHAT_ID, pesan2);
-
-    bool response2 = bot.sendMessage(CHAT_ID, pesan2);
-
-    // Cek apakah respons dari server Telegram valid
-    if (response2 == true) {
-      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
-    } else {
-      Serial.println("❌ Gagal mengirim pesan.");
-      Serial.println("Respons Telegram:");
-      Serial.println(response2);
-    }
-
-    Serial.print("Mengirim pesan : \n");
-    Serial.println(String(pesan2));
-    Serial.println("🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan");
-    Serial.println();
-
-    // Kirim data kecelakaan
-    dataKecelakaan();
-
-    // Tambahkan aksi tambahan seperti buzzer, notifikasi, dll
-  } 
-  else
-  {
-    statusKecelakaan = 0;
+  // IP Address
+  Serial.print("IP Address : ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Atur Waktu: ");
+  configTime(0, 0, "pool.ntp.org"); 
+  time_t now = time(nullptr);
+  while (now < 24 * 3600) {
+    Serial.print(".");
+    delay(100);
+    now = time(nullptr);
   }
+  Serial.print("\n");
+  Serial.print(String(now));
+  Serial.println("\n");
 }
 
-// Firebase --------------------------------------------------
+// Deklarasi Firebase --------------------------------------------------
 #include <Firebase_ESP_Client.h>
 
 #define Web_API_KEY "AIzaSyAf-g56dpov5Bx4UuLIJjl3IpCIOREOiSU"
@@ -742,8 +344,9 @@ FirebaseConfig config;
 
 // Timer variables for sending data every 10 seconds
 unsigned long prevMillisFirebase = 0;
-const unsigned long intervalFirebase = 1000; // 10 seconds in milliseconds
+const unsigned long intervalFirebase = 3000; // 10 seconds in milliseconds
 
+// Firebase Setup --------------------------------------------------
 void firebaseSetup()
 {
   config.api_key = Web_API_KEY;
@@ -761,6 +364,7 @@ void firebaseSetup()
   Firebase.begin(&config, &auth);
 }
 
+// Firebase Loop --------------------------------------------------
 void firebaseLoop()
 {
   // Periodic data sending every 10 seconds
@@ -772,39 +376,191 @@ void firebaseLoop()
     Firebase.RTDB.setString(&fbdo, "/proter/ay", ay);
     Firebase.RTDB.setString(&fbdo, "/proter/az", az);
     Firebase.RTDB.setString(&fbdo, "/proter/getar", getar);
-    Firebase.RTDB.setString(&fbdo, "/proter/satelit", gps.satellites.value());
-    Firebase.RTDB.setString(&fbdo, "/proter/latitude", String(gps.location.lat(), 6));
-    Firebase.RTDB.setString(&fbdo, "/proter/longitude", String(gps.location.lng(), 6));
+    Firebase.RTDB.setString(&fbdo, "/proter/satelit", satelit);
+    Firebase.RTDB.setString(&fbdo, "/proter/latitude", String(latitude, 6));
+    Firebase.RTDB.setString(&fbdo, "/proter/longitude", String(longitude, 6));
     Firebase.RTDB.setString(&fbdo, "/proter/status", statusKecelakaan);
+  }
+} 
+
+// Deteksi jatuh --------------------------------------------------
+bool isFallen = false;
+unsigned long fallStartTime = 0;
+const unsigned long intervalFall = 60000;
+
+void firebaseKecelakaan()
+{
+  Firebase.RTDB.setString(&fbdo, "/proter/ax", ax);
+  Firebase.RTDB.setString(&fbdo, "/proter/ay", ay);
+  Firebase.RTDB.setString(&fbdo, "/proter/az", az);
+  Firebase.RTDB.setString(&fbdo, "/proter/getar", getar);
+  Firebase.RTDB.setString(&fbdo, "/proter/satelit", satelit);
+  Firebase.RTDB.setString(&fbdo, "/proter/latitude", String(latitude, 6));
+  Firebase.RTDB.setString(&fbdo, "/proter/longitude", String(longitude, 6));
+  Firebase.RTDB.setString(&fbdo, "/proter/status", statusKecelakaan);
+}
+
+void cekJatuh()
+{
+  // Cek kondisi helm pengguna
+  statusKecelakaan = 0;
+
+  // Jatuh 1 jika helm miring dan ada getaran
+  if (az < 5 && getar == 1) {
+    statusKecelakaan = 1;
+
+    // if (latitude == 0 && longitude == 0) {
+    //   latitude = -6.354806;
+    //   longitude = 106.775043;
+    // }
+
+    String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
+    pesan1 += "\nLokasi saat ini : ";
+    pesan1 += String(latitude, 6);
+    pesan1 += ", ";
+    pesan1 += String(longitude, 6);
+    pesan1 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+    pesan1 += String(latitude, 6);
+    pesan1 += ",";
+    pesan1 += String(longitude, 6);
+
+    bool response1 = bot.sendMessage(CHAT_ID, pesan1);
+
+    Serial.println("Mengirim pesan1");
+
+    // Cek apakah respons dari server Telegram valid
+    if (response1 == true) {
+      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+    } 
+    else {
+      Serial.println("❌ Gagal mengirim pesan.");
+      Serial.print("Respons Telegram: ");
+      Serial.println(response1);
+    }
+
+    firebaseKecelakaan();
+  } 
+  else {
+    statusKecelakaan = 0;
+  }
+
+  // Jatuh 2 jika pengguna mengalami benturan dari sisi sampinng kanan kiri atau depan belakang, serta mengalami percepatan mendadak
+  if ((abs(ax) > 10 && abs(ay) > 10) || (abs(ax) > 10 && abs(az) > 10) || (abs(az) > 10 && abs(ay) > 10) ||
+      (abs(ax) > 15) || (abs(ay) > 15) || (abs(az) > 15)) {
+    statusKecelakaan = 1;
+
+    // if (latitude == 0 && longitude == 0) {
+    //   latitude = -6.354806;
+    //   longitude = 106.775043;
+    // }
+
+    String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
+    pesan2 += "\nLokasi saat ini : ";
+    pesan2 += String(latitude, 6);
+    pesan2 += ", ";
+    pesan2 += String(longitude, 6);
+    pesan2 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+    pesan2 += String(latitude, 6);
+    pesan2 += ",";
+    pesan2 += String(longitude, 6);
+
+    bool response2 = bot.sendMessage(CHAT_ID, pesan2);
+
+    Serial.print("Mengirim pesan2");
+
+    // Cek apakah respons dari server Telegram valid
+    if (response2 == true) {
+      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+    } else {
+      Serial.println("❌ Gagal mengirim pesan.");
+      Serial.print("Respons Telegram: ");
+      Serial.println(response2);
+    }
+
+    firebaseKecelakaan();
+  } 
+  else {
+    statusKecelakaan = 0;
+  }
+
+  // Jatuh 3 jika helm miring selama 1 menit
+  if (az < 5) {
+    if (!isFallen) {
+      isFallen = true;
+      fallStartTime = millis();
+      Serial.println("Terdeteksi jatuh!");
+    }
+  } else {
+    // Jika sudah bangun sebelum 1 menit
+    if (isFallen) {
+      isFallen = false;
+      fallStartTime = 0;
+      Serial.println("Bangkit kembali, aman.");
+    }
+  }
+
+  // Cek apakah sudah jatuh lebih dari 1 menit
+  if (isFallen && ((currentMillis - fallStartTime) > intervalFall)) {
+    statusKecelakaan = 1;
+
+    // if (latitude == 0 && longitude == 0) {
+    //   latitude = -6.354806;
+    //   longitude = 106.775043;
+    // }
+
+    String pesan3 = "🚨 Bahaya kecelakaan terdeteksi! Helm miring selama lebih dari 1 menit";
+    pesan3 += "\nLokasi saat ini : ";
+    pesan3 += String(latitude, 6);
+    pesan3 += ", ";
+    pesan3 += String(longitude, 6);
+    pesan3 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+    pesan3 += String(latitude, 6);
+    pesan3 += ",";
+    pesan3 += String(longitude, 6);
+
+    bool response3 = bot.sendMessage(CHAT_ID, pesan3);
+
+    Serial.print("Mengirim pesan3");
+
+    // Cek apakah respons dari server Telegram valid
+    if (response3 == true) {
+      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+    } else {
+      Serial.println("❌ Gagal mengirim pesan.");
+      Serial.print("Respons Telegram: ");
+      Serial.println(response3);
+    }
+
+    firebaseKecelakaan();
+
+    // Reset status agar tidak mengulang-ulang aksi
+    isFallen = false;
+    fallStartTime = 0;
   }
 }
 
-// --------------------------------------------
-
+// --------------------------------------------------
 void setup()
 {
   Serial.begin(115200);
 
   telegramSetup();
-  mqttSetup();
   firebaseSetup();
   gpsSetup();
   mpuSetup();
   swSetup();
 }
 
-// --------------------------------------------
-
+//  --------------------------------------------------
 void loop()
 {
   currentMillis = millis();
 
   gpsLoop();
-  // cek_pesan();
   mpuLoop();
   swLoop();
-  cekJatuh();
-  mqttLoop();
   firebaseLoop();
+  cekJatuh();
+  
   delay(50);
 }
