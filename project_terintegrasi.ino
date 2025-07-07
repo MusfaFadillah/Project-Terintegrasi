@@ -661,7 +661,7 @@ void cekJatuh()
 
     bool response2 = bot.sendMessage(CHAT_ID, pesan2);
 
-    Serial.print("Mengirim pesan2");
+    Serial.println("Mengirim pesan2");
 
     // Cek apakah respons dari server Telegram valid
     if (response2 == true) {
@@ -679,63 +679,110 @@ void cekJatuh()
   }
 
   // Jatuh 3 jika helm miring selama 1 menit
-  // Deteksi jatuh berdasarkan akselerasi total (misal < 0.5g dianggap jatuh)
+  // Deteksi jatuh berdasarkan akselerasi (misal az < 5 dianggap jatuh)
   if (az < 5) {
-    if (!isFallen) {
-      isFallen = true;
-      fallStartTime = millis();
-      Serial.println("Terdeteksi jatuh!");
+    if (fallStartTime == 0) {
+      fallStartTime = currentMillis;
+      Serial.println("Mulai menghitung jatuh");
     }
-  } else {
-    // Jika sudah bangun sebelum 1 menit
-    if (isFallen) {
-      isFallen = false;
+    
+    if (currentMillis - fallStartTime > intervalFall) {
+      statusKecelakaan = 1;
+      
+      // if (latitude == 0 && longitude == 0) {
+      //   latitude = -6.354806;
+      //   longitude = 106.775043;
+      // }
+
+      String pesan3 = "🚨 Bahaya kecelakaan terdeteksi! Helm miring selama lebih dari 1 menit";
+      pesan3 += "\nLokasi saat ini : ";
+      pesan3 += String(latitude, 6);
+      pesan3 += ", ";
+      pesan3 += String(longitude, 6);
+      pesan3 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+      pesan3 += String(latitude, 6);
+      pesan3 += ",";
+      pesan3 += String(longitude, 6);
+
+      bool response3 = bot.sendMessage(CHAT_ID, pesan3);
+
+      Serial.println("Mengirim pesan3");
+
+      // Cek apakah respons dari server Telegram valid
+      if (response3 == true) {
+        Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+      } else {
+        Serial.println("❌ Gagal mengirim pesan.");
+        Serial.print("Respons Telegram: ");
+        Serial.println(response3);
+      }
+
+      mqttKecelakaan();
+
       fallStartTime = 0;
-      Serial.println("Bangkit kembali, aman.");
     }
-  }
-
-  // Cek apakah sudah jatuh lebih dari 1 menit
-  if (isFallen && (currentMillis - fallStartTime > intervalFall)) {
-    statusKecelakaan = 1;
-
-    // if (latitude == 0 && longitude == 0) {
-    //   latitude = -6.354806;
-    //   longitude = 106.775043;
-    // }
-
-    String pesan3 = "🚨 Bahaya kecelakaan terdeteksi! Helm miring selama lebih dari 1 menit";
-    pesan3 += "\nLokasi saat ini : ";
-    pesan3 += String(latitude, 6);
-    pesan3 += ", ";
-    pesan3 += String(longitude, 6);
-    pesan3 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
-    pesan3 += String(latitude, 6);
-    pesan3 += ",";
-    pesan3 += String(longitude, 6);
-
-    bool response3 = bot.sendMessage(CHAT_ID, pesan3);
-
-    Serial.print("Mengirim pesan3");
-
-    // Cek apakah respons dari server Telegram valid
-    if (response3 == true) {
-      Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
-    } else {
-      Serial.println("❌ Gagal mengirim pesan.");
-      Serial.print("Respons Telegram: ");
-      Serial.println(response3);
-    }
-
-    mqttKecelakaan();
-
-    // Reset status agar tidak mengulang-ulang aksi
-    isFallen = false;
-    fallStartTime = 0;
   }
   else {
     statusKecelakaan = 0;
+    fallStartTime = 0;
   }
+
+  // if (az < 5) {
+  //   if (!isFallen) {
+  //     isFallen = true;
+  //     fallStartTime = millis();
+  //     Serial.println("Terdeteksi jatuh!");
+  //   }
+  // } else {
+  //   // Jika sudah bangun sebelum 1 menit
+  //   if (isFallen) {
+  //     isFallen = false;
+  //     fallStartTime = 0;
+  //     Serial.println("Bangkit kembali, aman.");
+  //   }
+  // }
+
+  // // Cek apakah sudah jatuh lebih dari 1 menit
+  // if (isFallen && (currentMillis - fallStartTime > intervalFall)) {
+  //   statusKecelakaan = 1;
+
+  //   // if (latitude == 0 && longitude == 0) {
+  //   //   latitude = -6.354806;
+  //   //   longitude = 106.775043;
+  //   // }
+
+  //   String pesan3 = "🚨 Bahaya kecelakaan terdeteksi! Helm miring selama lebih dari 1 menit";
+  //   pesan3 += "\nLokasi saat ini : ";
+  //   pesan3 += String(latitude, 6);
+  //   pesan3 += ", ";
+  //   pesan3 += String(longitude, 6);
+  //   pesan3 += "\nLink lokasi saat ini : https://www.google.com/maps/?q=";
+  //   pesan3 += String(latitude, 6);
+  //   pesan3 += ",";
+  //   pesan3 += String(longitude, 6);
+
+  //   bool response3 = bot.sendMessage(CHAT_ID, pesan3);
+
+  //   Serial.print("Mengirim pesan3");
+
+  //   // Cek apakah respons dari server Telegram valid
+  //   if (response3 == true) {
+  //     Serial.println("✅ Pesan berhasil dikirim ke Telegram.");
+  //   } else {
+  //     Serial.println("❌ Gagal mengirim pesan.");
+  //     Serial.print("Respons Telegram: ");
+  //     Serial.println(response3);
+  //   }
+
+  //   mqttKecelakaan();
+
+  //   // Reset status agar tidak mengulang-ulang aksi
+  //   isFallen = false;
+  //   fallStartTime = 0;
+  // }
+  // else {
+  //   statusKecelakaan = 0;
+  // }
 }
 
 // --------------------------------------------------
