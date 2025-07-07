@@ -1,5 +1,6 @@
 #include <Arduino.h>
 unsigned long currentMillis;
+int statusKecelakaan = 0;
 
 // Deklarasi GPS --------------------------------------------------
 #include <TinyGPSPlus.h>
@@ -330,12 +331,269 @@ void telegramSetup()
   Serial.println("\n");
 }
 
-// Deteksi jatuh --------------------------------------------------
-int statusKecelakaan = 0;
+// Deklarasi MQTT --------------------------------------------------
+#include <PubSubClient.h>
 
+const char* mqtt_server = "broker.hivemq.com";
+
+unsigned long prevMillisMqtt = 0;
+const unsigned long intervalMqtt = 3000;
+
+WiFiClient espClient;
+PubSubClient mqttclient(espClient);
+#define MSG_BUFFER_SIZE  (50)
+
+String nilaiJam = "0", nilaiMenit = "0", nilaiDetik = "0";
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!mqttclient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP8266Client-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (mqttclient.connect(clientId.c_str())) {
+      Serial.println("Connected");
+      // Once connected, publish an announcement...
+      mqttclient.publish("musfa/mqtt", "musfa");
+      // ... and resubscribe
+      mqttclient.subscribe("musfa/mqtt");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttclient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+// MQTT Setup --------------------------------------------------
+void mqttSetup() {
+  mqttclient.setServer(mqtt_server, 1883);
+}
+
+// MQTT Loop --------------------------------------------------
+void mqttLoop() {
+  if (!mqttclient.connected()) {
+    reconnect();
+  }
+  mqttclient.loop();
+
+  if (currentMillis - prevMillisMqtt > intervalMqtt) {
+    prevMillisMqtt = currentMillis;
+    
+    // Buat String nilai
+    int nilaiJam1 = gps.time.hour() + 7;
+    if (nilaiJam1 > 24) {
+      nilaiJam1 = nilaiJam1 - 24;
+    }
+    if (nilaiJam1 < 10) {
+      nilaiJam = "0";
+      nilaiJam += String(nilaiJam1);
+    }
+    else {
+      nilaiJam = String(nilaiJam1);
+    }
+    // ---
+    int nilaiMenit1 = gps.time.minute();
+    if (nilaiMenit1 < 10) {
+      nilaiMenit = "0";
+      nilaiMenit += String(nilaiMenit1);
+    }
+    else {
+      nilaiMenit = String(nilaiMenit1);
+    }
+    // ---
+    int nilaiDetik1 = gps.time.second();
+    if (nilaiDetik1 < 10) {
+      nilaiDetik = "0";
+      nilaiDetik += String(nilaiDetik1);
+    }
+    else {
+      nilaiDetik = String(nilaiDetik1);
+    }
+
+    // Buat JSON string
+    String payload = "{";
+
+    payload += "\"ax\":\"";
+    payload += String(ax, 2);
+    payload += "\",";
+
+    payload += "\"ay\":\"";
+    payload += String(ay, 2);
+    payload += "\",";
+
+    payload += "\"az\":\"";
+    payload += String(az, 2);
+    payload += "\",";
+
+    payload += "\"getar\":\"";
+    payload += String(getar);
+    payload += "\",";
+
+    payload += "\"satelit\":\"";
+    payload += String(satelit);
+    payload += "\",";
+
+    payload += "\"latitude\":\"";
+    payload += String(latitude, 6);
+    payload += "\",";
+
+    payload += "\"longitude\":\"";
+    payload += String(longitude, 6);
+    payload += "\",";
+
+    payload += "\"tanggal\":\"";
+    payload += String(tanggal);
+    payload += "\",";
+
+    payload += "\"bulan\":\"";
+    payload += String(bulan);
+    payload += "\",";
+
+    payload += "\"tahun\":\"";
+    payload += String(tahun);
+    payload += "\",";
+
+    payload += "\"jam\":\"";
+    payload += String(nilaiJam);
+    payload += "\",";
+
+    payload += "\"menit\":\"";
+    payload += String(nilaiMenit);
+    payload += "\",";
+
+    payload += "\"detik\":\"";
+    payload += String(nilaiDetik);
+    payload += "\",";
+
+    payload += "\"status\":\"";
+    payload += String(statusKecelakaan);
+    payload += "\"";
+
+    payload += "}";
+
+    Serial.println(payload);
+
+    mqttclient.publish("musfa/proter", payload.c_str());
+
+    Serial.println();
+  }
+}
+
+// Deteksi jatuh --------------------------------------------------
 bool isFallen = false;
 unsigned long fallStartTime = 0;
 const unsigned long intervalFall = 60000;
+
+void mqttKecelakaan()
+{
+  if (!mqttclient.connected()) {
+    reconnect();
+  }
+  mqttclient.loop();
+
+  // Buat String nilai
+  int nilaiJam1 = gps.time.hour() + 7;
+  if (nilaiJam1 > 24) {
+    nilaiJam1 = nilaiJam1 - 24;
+  }
+  if (nilaiJam1 < 10) {
+    nilaiJam = "0";
+    nilaiJam += String(nilaiJam1);
+  }
+  else {
+    nilaiJam = String(nilaiJam1);
+  }
+  // ---
+  int nilaiMenit1 = gps.time.minute();
+  if (nilaiMenit1 < 10) {
+    nilaiMenit = "0";
+    nilaiMenit += String(nilaiMenit1);
+  }
+  else {
+    nilaiMenit = String(nilaiMenit1);
+  }
+  // ---
+  int nilaiDetik1 = gps.time.second();
+  if (nilaiDetik1 < 10) {
+    nilaiDetik = "0";
+    nilaiDetik += String(nilaiDetik1);
+  }
+  else {
+    nilaiDetik = String(nilaiDetik1);
+  }
+
+  // Buat JSON string
+  String payload = "{";
+
+  payload += "\"ax\":\"";
+  payload += String(ax, 2);
+  payload += "\",";
+
+  payload += "\"ay\":\"";
+  payload += String(ay, 2);
+  payload += "\",";
+
+  payload += "\"az\":\"";
+  payload += String(az, 2);
+  payload += "\",";
+
+  payload += "\"getar\":\"";
+  payload += String(getar);
+  payload += "\",";
+
+  payload += "\"satelit\":\"";
+  payload += String(satelit);
+  payload += "\",";
+
+  payload += "\"latitude\":\"";
+  payload += String(latitude, 6);
+  payload += "\",";
+
+  payload += "\"longitude\":\"";
+  payload += String(longitude, 6);
+  payload += "\",";
+
+  payload += "\"tanggal\":\"";
+  payload += String(tanggal);
+  payload += "\",";
+
+  payload += "\"bulan\":\"";
+  payload += String(bulan);
+  payload += "\",";
+
+  payload += "\"tahun\":\"";
+  payload += String(tahun);
+  payload += "\",";
+
+  payload += "\"jam\":\"";
+  payload += String(nilaiJam);
+  payload += "\",";
+
+  payload += "\"menit\":\"";
+  payload += String(nilaiMenit);
+  payload += "\",";
+
+  payload += "\"detik\":\"";
+  payload += String(nilaiDetik);
+  payload += "\",";
+
+  payload += "\"status\":\"";
+  payload += String(statusKecelakaan);
+  payload += "\"";
+
+  payload += "}";
+
+  Serial.println(payload);
+
+  mqttclient.publish("musfa/proter", payload.c_str());
+
+  Serial.println();
+}
 
 void cekJatuh()
 {
@@ -374,6 +632,8 @@ void cekJatuh()
       Serial.print("Respons Telegram: ");
       Serial.println(response1);
     }
+
+    mqttKecelakaan();
   } 
   else {
     statusKecelakaan = 0;
@@ -411,6 +671,8 @@ void cekJatuh()
       Serial.print("Respons Telegram: ");
       Serial.println(response2);
     }
+
+    mqttKecelakaan();
   } 
   else {
     statusKecelakaan = 0;
@@ -465,9 +727,14 @@ void cekJatuh()
       Serial.println(response3);
     }
 
+    mqttKecelakaan();
+
     // Reset status agar tidak mengulang-ulang aksi
     isFallen = false;
     fallStartTime = 0;
+  }
+  else {
+    statusKecelakaan = 0;
   }
 }
 
@@ -477,6 +744,7 @@ void setup()
   Serial.begin(115200);
 
   telegramSetup();
+  mqttSetup();
   gpsSetup();
   mpuSetup();
   swSetup();
@@ -490,6 +758,7 @@ void loop()
   gpsLoop();
   mpuLoop();
   swLoop();
+  mqttLoop();
   cekJatuh();
   
   delay(50);
