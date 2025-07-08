@@ -609,7 +609,7 @@ void cekJatuh()
     //   longitude = 106.775043;
     // }
 
-    String pesan1 = "🚨 Bahaya kecelakaan terdeteksi! Orientasi abnormal dan hantaman terdeteksi";
+    String pesan1 = "🚨 Bahaya kecelakaan terdeteksi!";
     pesan1 += "\nLokasi saat ini : ";
     pesan1 += String(latitude, 6);
     pesan1 += ", ";
@@ -649,7 +649,7 @@ void cekJatuh()
     //   longitude = 106.775043;
     // }
 
-    String pesan2 = "🚨 Bahaya kecelakaan terdeteksi! Helm tegak, ada benturan dari samping/depan";
+    String pesan2 = "🚨 Bahaya kecelakaan terdeteksi!";
     pesan2 += "\nLokasi saat ini : ";
     pesan2 += String(latitude, 6);
     pesan2 += ", ";
@@ -694,7 +694,7 @@ void cekJatuh()
       //   longitude = 106.775043;
       // }
 
-      String pesan3 = "🚨 Bahaya kecelakaan terdeteksi! Helm miring selama lebih dari 1 menit";
+      String pesan3 = "🚨 Bahaya kecelakaan terdeteksi!";
       pesan3 += "\nLokasi saat ini : ";
       pesan3 += String(latitude, 6);
       pesan3 += ", ";
